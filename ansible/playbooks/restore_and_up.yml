@@ -1,0 +1,23 @@
+- name: Restore radicale and bring up
+  hosts: radicale
+  become: yes
+
+  vars:
+    radicale_dir: /opt/radicale
+    backup_file: radicale_backup.tar.gz
+
+  tasks:
+    - name: Copy backup
+      copy:
+        src: "../roles/radicale/files/{{ backup_file }}"
+        dest: "{{ radicale_dir }}/{{ backup_file }}"
+
+    - name: Run restore.sh
+      command: ./restore.sh "{{ backup_file }}"
+      args:
+        chdir: "{{ radicale_dir }}"
+
+    - name: Start docker-compose
+      community.docker.docker_compose:
+        project_src: "{{ radicale_dir }}"
+        state: present

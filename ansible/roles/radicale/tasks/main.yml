@@ -1,0 +1,57 @@
+- name: Install dependencies
+  apt:
+    name:
+      - docker.io
+      - docker-compose
+      - rsync
+      - make
+    update_cache: yes
+
+- name: Add user to docker group
+  user:
+    name: "{{ ansible_user }}"
+    groups: docker
+    append: yes
+
+- name: Copy radicale project to remote server
+  synchronize:
+    src: "{{ radicale_repo }}/"
+    dest: "{{ radicale_dir }}/"
+    recursive: yes
+    # delete: no
+    rsync_opts:
+      - "--rsync-path=rsync"
+
+# - name: Ensure data dir exists
+#   file:
+#     path: "{{ radicale_dir }}/data"
+#     state: directory
+#     owner: "{{ ansible_user }}"
+#     mode: "0755"
+
+# - name: Ensure config dir exists
+#   file:
+#     path: "{{ radicale_dir }}/config"
+#     state: directory
+#     owner: "{{ ansible_user }}"
+#     mode: "0755"
+
+
+- name: Copy backup (if exists)
+  copy:
+    src: "{{ backup_file }}"
+    dest: "{{ radicale_dir }}/{{ backup_file }}"
+  when: restore_backup
+
+- name: Run restore script
+  # command: ./restore.sh "{{ backup_file }}"
+  command: make restore ARCHIVE="{{ backup_file }}"
+  args:
+    chdir: "{{ radicale_dir }}"
+  when: restore_backup
+
+- name: Start docker-compose v2
+  community.docker.docker_compose_v2:
+    project_src: "{{ radicale_dir }}"
+    state: present
+    # build: false
