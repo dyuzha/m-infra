@@ -1,0 +1,44 @@
+# install_sp_page_builder.yml
+---
+
+- name: Install SP Page Builder Lite in Joomla Docker
+  uri:
+    url: "https://www.joomshaper.com/downloads/extension/sp-page-builder-lite-next"
+    dest: "/tmp/sp-page-builder.zip"
+    return_content: no
+
+
+- name: Copy extension to container
+  community.docker.docker_container_exec:
+    container: "joomla-joomla-1"
+    command: "mkdir -p /var/www/html/tmp/extensions"
+    detach: false
+
+
+- name: Upload extension to container
+  # community.docker.docker_copy:
+  community.docker.docker_container_copy_into:
+    container: "joomla-joomla-1"
+    source: "/tmp/sp-page-builder.zip"
+    dest: "/var/www/hansible-galaxy collection install community.docker --forcetml/tmp/extensions/sp-page-builder.zip"
+
+
+- name: Install extension via Joomla CLI
+  community.docker.docker_container_exec:
+    container: "joomla-joomla-1"
+    command: "php /var/www/html/cli/install-joomla-extension.php /tmp/extensions/sp-page-builder.zip"
+    detach: false
+    register: install_result
+    failed_when: "'successfully installed' not in install_result.stdout"
+
+
+- name: Verify installation
+  debug:
+    msg: "SP Page Builder successfully installed"
+  when: "'successfully installed' in install_result.stdout"
+
+
+- name: Cleanup temporary files
+  file:
+    path: "/tmp/sp-page-builder.zip"
+    state: absent

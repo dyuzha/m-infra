@@ -1,0 +1,9 @@
+---
+- name: Установка Joomla на целевой хост
+  hosts: "{{ target_host | default('radicale') }}"
+  vars:
+    joomla_dir: /opt/joomla
+  tasks:
+    - include_role:
+        name: joomla
+        tasks_from: main.yml

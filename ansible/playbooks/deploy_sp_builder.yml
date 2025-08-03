@@ -1,0 +1,7 @@
+---
+- name: Установка SP Builder
+  hosts: "{{ target_host | default('radicale') }}"
+  tasks:
+    - include_role:
+        name: joomla
+        tasks_from: install_sp_page_builder.yml
