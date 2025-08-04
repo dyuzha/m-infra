@@ -1,33 +1,4 @@
 ---
-
-- name: Install system dependencies
-  apt:
-    name:
-      - docker.io
-      - docker-compose
-      - python3-pip
-    update_cache: yes
-    state: latest
-
-
-- name: Install Python Docker SDK
-  pip:
-    name:
-      - docker
-      - docker-compose
-      - requests
-    state: present
-    extra_args: --break-system-packages
-
-
-- name: Add current user to docker group
-  user:
-    name: "{{ ansible_user }}"
-    groups: docker
-    append: yes
-  notify: reload docker group
-
-
 - name: Ensure Joomla directory exists
   file:
     path: "{{ joomla_dir }}"
@@ -42,14 +13,21 @@
     mode: '0644'
 
 
+# - name: Start Joomla services
+#   community.docker.docker_compose_v2:
+#     project_src: "{{ joomla_dir }}"
+#     state: present
+#     build: never
+#     recreate: always
+#     pull: always
+
 - name: Start Joomla services
-  community.docker.docker_compose_v2:
+  community.docker.docker_compose:
     project_src: "{{ joomla_dir }}"
     state: present
-    build: never
+    build: false
     recreate: always
-    pull: always
-
+    pull: true
 
 - name: Wait for Joomla to become available
   wait_for:

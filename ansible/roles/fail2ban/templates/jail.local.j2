@@ -1,0 +1,10 @@
+[DEFAULT]
+ignoreip = {{ fail2ban_whitelist_ips | join(' ') }}
+bantime = {{ fail2ban_bantime }}
+maxretry = {{ fail2ban_maxretry }}
+
+[sshd]
+enabled = true
+port = {{ fail2ban_ssh_port }}
+filter = sshd
+logpath = %(sshd_log)s

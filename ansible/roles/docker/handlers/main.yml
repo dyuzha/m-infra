@@ -1,0 +1,3 @@
+---
+- name: reload docker group
+  command: systemctl reload docker

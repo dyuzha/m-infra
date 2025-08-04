@@ -1,0 +1,29 @@
+---
+- name: Install system dependencies
+  apt:
+    name:
+      - docker.io
+      - python3-pip
+      - docker-compose
+      # - docker-compose-plugin
+    update_cache: yes
+    state: latest
+
+
+- name: Install Python Docker SDK
+  pip:
+    name:
+      - docker
+      - docker-compose
+      - requests
+    state: present
+    # extra_args: --user
+    extra_args: --break-system-packages
+
+
+- name: Add current user to docker group
+  user:
+    name: "{{ ansible_user }}"
+    groups: docker
+    append: yes
+  notify: reload docker group

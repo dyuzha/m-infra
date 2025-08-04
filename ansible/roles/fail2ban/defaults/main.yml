@@ -1,0 +1,6 @@
+---
+# fail2ban_whitelist_ips: ["192.168.1.1", "10.0.0.1"]  # доверенные IP
+fail2ban_whitelist_ips: []  # доверенные IP
+fail2ban_bantime: "1h"                               # время бана
+fail2ban_maxretry: 3                                 # кол-во попыток
+fail2ban_ssh_port: "{{ ansible_ssh_port | default(22) }}"  # порт SSH (берётся из inventory)

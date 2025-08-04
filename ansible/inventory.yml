@@ -1,11 +1,18 @@
 all:
+
+  vars:
+
+    ansible_user: root
+    ansible_port: 56567
+    ansible_private_key_file: ~/.ssh/id_ed25519
+
   hosts:
 
-    radicale:
+    fin-1:
       ansible_host: mrz.dyuzha.ru
-      ansible_user: root
-      ansible_port: 56567
-      ansible_private_key_file: ~/.ssh/id_ed25519
 
-    localhost:
-      ansible_connection: local  # Ключевое отличие!
+    # localhost:
+    #   ansible_connection: local  # Ключевое отличие!
+
+    msk-1:
+      ansible_host: 91.217.80.205
