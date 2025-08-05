@@ -21,13 +21,13 @@
 #     recreate: always
 #     pull: always
 
-- name: Start Joomla services
+- name: Start Joomla services with docker-compose
   community.docker.docker_compose:
     project_src: "{{ joomla_dir }}"
     state: present
     build: false
     recreate: always
-    pull: true
+    pull: yes
 
 - name: Wait for Joomla to become available
   wait_for:
