@@ -1,0 +1,18 @@
+---
+- name: Install requirements
+  package:
+    name:
+      - curl
+      - socat
+      - cron
+    state: present
+
+- name: Download and install acme.sh
+  ansible.builtin.shell: |
+    curl https://get.acme.sh | sh
+  args:
+    creates: "{{ ansible_env.HOME }}/.acme.sh/acme.sh" # Если файл сущестует, задача пропускается
+    executable: /bin/bash
+  register: acme_install # Сохраняет результат выполнения в переменную
+
+- name:

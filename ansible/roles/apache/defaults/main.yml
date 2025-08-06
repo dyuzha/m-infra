@@ -1,0 +1,18 @@
+---
+acme_certs:
+  - domains:
+      - example.com
+      - "*.example.com"
+    challenge_type: dns  # dns или http
+    dns_provider: cloudflare
+    cert_path: "/etc/ssl/certs"
+    key_path: "/etc/ssl/private"
+    renew_days: 30
+
+# Cloudflare API (для DNS-валидации)
+cloudflare_email: "your@email.com"
+cloudflare_api_key: "your_global_api_key"
+
+# Настройки ACME
+acme_directory: "https://acme-v02.api.letsencrypt.org/directory"
+acme_staging: false  # Для тестов используйте staging
