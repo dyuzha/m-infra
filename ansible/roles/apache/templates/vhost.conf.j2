@@ -1,0 +1,15 @@
+<VirtualHost *:80>
+    ServerAdmin admin@{{ domain_name }}
+    ServerName {{ domain_name }}
+    ServerAlias www.{{ domain_name }}
+    DocumentRoot /var/www/{{ domain_name }}/public_html
+
+    <Directory /var/www/{{ domain_name }}/public_html>
+        Options Indexes FollowSymLinks
+        AllowOverride All
+        Require all granted
+    </Directory>
+
+    ErrorLog ${APACHE_LOG_DIR}/{{ domain_name }}-error.log
+    CustomLog ${APACHE_LOG_DIR}/{{ domain_name }}-access.log combined
+</VirtualHost>
