@@ -1,0 +1,27 @@
+# ---
+# - name: Deploy new xray_config.json
+#   ansible.builtin.template:
+#     src: templates/xray_config.json.j2
+#     dest: /var/lib/marzban/xray_config.json
+#     owner: root
+#     group: root
+#     mode: '0644'
+#   notify:
+#     - Restart Marzban Xray
+#
+#
+# # - name: Apply config to Xray nodes
+# #   hosts: xray_nodes
+# #   tasks:
+# #     - name: Copy config from Marzban server
+# #       ansible.builtin.synchronize:
+# #         src: /var/lib/marzban/xray_config.json
+# #         dest: /etc/xray/config.json
+# #       notify:
+# #         - Restart Xray service
+# #
+# # - name: Restart Xray service
+# #   ansible.builtin.service:
+# #     name: xray
+# #     state: restarted
+# #   when: false  # Активируется только через notify

@@ -1,0 +1,70 @@
+---
+- name: Install system dependencies
+  become: yes # Запуск от root
+  apt:
+    name:
+      - docker.io
+      # - docker-compose-plugin
+      - curl
+    state: present
+    update_cache: yes
+
+
+- name: Download install script
+  get_url:
+    url: https://github.com/Gozargah/Marzban-scripts/raw/master/marzban.sh
+    dest: /tmp/marzban-install.sh
+    mode: '0755'
+  retries: 3
+  delay: 5
+  register: script_download
+
+
+# - name: Run installation
+#   command: /tmp/marzban-install.sh install &
+#   when: script_download is succeeded
+#   register: marzban_install
+
+- name: Run installation in background
+  shell: nohup /tmp/marzban-install.sh install > /tmp/marzban-install.log 2>&1 &
+  async: 0
+  poll: 0
+  when: script_download is succeeded
+
+
+- name: Wait for marzban up
+  shell: marzban status
+  register: marzban_status
+  retries: 10           # Попытаться 10 раз
+  delay: 15             # С паузой 15 секунд между попытками
+  until: "'.*Status.*:.*Up.*' in marzban_status.stdout"
+  args:
+    removes: /tmp/marzban-install.sh # Удалит после выполнения
+
+
+- name: Debug marzban status output
+  debug:
+    var: marzban_status.stdout_lines
+
+# - name: Remove install script
+#   file:
+#     path: /tmp/marzban-install.sh
+#     state: absent
+#   when: script_download is succeeded
+
+
+- name: Create admin user
+  become: yes
+  expect:
+    command: |
+      marzban cli admin create \
+      --username admin \
+      --sudo
+    responses:
+      '.*[P,p]assword:.*': 'admin123\n'
+      '.*[R,r]epeat for confirmation:.*': 'admin123\n'
+      '.*[T,t]elegram ID \[\].*': '\n'
+      '.*[D,d]iscord webhook \[\]:.*': '\n'
+
+  register: admin_create
+  changed_when: "'Admin \"admin\" created successfully' in admin_create.stdout"

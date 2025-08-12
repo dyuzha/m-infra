@@ -1,0 +1,3 @@
+---
+- name: Restart Marzban Xray
+  ansible.builtin.command: marzban restart-xray
