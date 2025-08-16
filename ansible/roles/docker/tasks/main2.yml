@@ -1,0 +1,154 @@
+---
+# Собираем факты о системе для дальнейшего использования
+- name: "Docker | Gather instance facts"
+  setup: {}
+
+# Удаляем старые версии Docker, которые могут конфликтовать с новой установкой
+- name: "Docker | Ensure old versions of Docker are not installed."
+  package:
+    name:
+      - docker
+      - docker.io
+      - docker-engine
+    state: absent
+
+# Устанавливаем базовые зависимости для работы с HTTPS-репозиториями
+- name: "Docker | Ensure dependencies are installed."
+  apt:
+    name:
+      - apt-transport-https  # Для работы с HTTPS-репозиториями
+      - ca-certificates      # SSL-сертификаты
+    state: present
+    update_cache: true  # Обновляем кеш пакетов
+  when: docker_add_repo | bool  # Выполняем только если нужно добавлять репозиторий
+
+# Устанавливаем gnupg2 для систем с Ubuntu < 20.04 и других дистрибутивов
+- name: "Docker | Ensure additional dependencies are installed (on Ubuntu < 20.04 and any other systems)."
+  apt:
+    name: gnupg2  # Для работы с GPG-ключами
+    state: present
+    update_cache: true
+  when: ansible_distribution != 'Ubuntu' or ansible_distribution_version is version('20.04', '<')
+
+# Для Ubuntu 20.04+ устанавливаем gnupg вместо gnupg2
+- name: "Docker | Ensure additional dependencies are installed (on Ubuntu >= 20.04)."
+  apt:
+    name: gnupg  # Обновленная версия для Ubuntu 20.04+
+    state: present
+    update_cache: true
+  when: ansible_distribution == 'Ubuntu' and ansible_distribution_version is version('20.04', '>=')
+
+# Загружаем GPG-ключ для верификации пакетов Docker
+- name: "Docker | Add Docker apt key."
+  ansible.builtin.get_url:
+    url: "{{ docker_apt_gpg_key }}"  # URL GPG-ключа
+    dest: /etc/apt/trusted.gpg.d/docker.asc  # Куда сохранить
+    mode: '0644'  # Права доступа
+    force: false  # Не перезаписывать если уже существует
+    checksum: "{{ docker_apt_gpg_key_checksum | default(omit) }}"  # Контрольная сумма для проверки
+  ignore_errors: "{{ docker_apt_ignore_key_error }}"  # Игнорировать ошибки если нужно
+  when: docker_add_repo | bool  # Только если добавляем репозиторий
+
+# Добавляем официальный репозиторий Docker
+- name: "Docker | Add Docker repository."
+  apt_repository:
+    repo: "{{ docker_apt_repository }}"  # URL репозитория
+    state: present
+    filename: "{{ docker_apt_filename }}"  # Имя файла для сохранения
+    update_cache: true  # Обновить кеш пакетов
+  when: docker_add_repo | bool
+
+# Основная установка Docker (для Ansible < 2.12 или не-RHEL/Debian систем)
+- name: "Docker | Install Docker packages."
+  package:
+    name: "{{ docker_packages }}"  # Список пакетов из переменных
+    state: "{{ docker_packages_state }}"  # Желаемое состояние (present/latest)
+  notify: Restart docker  # Вызов handler после установки
+  ignore_errors: "{{ ansible_check_mode }}"  # Игнорировать ошибки в check mode
+  when: "ansible_version.full is version_compare('2.12', '<') or ansible_os_family not in ['RedHat', 'Debian']"
+
+# Установка Docker с возможностью даунгрейда (для Ansible >= 2.12 на RHEL/Debian)
+- name: "Docker | Install Docker packages (with downgrade option)."
+  package:
+    name: "{{ docker_packages }}"
+    state: "{{ docker_packages_state }}"
+    allow_downgrade: true  # Разрешить понижение версии
+  notify: Restart docker
+  ignore_errors: "{{ ansible_check_mode }}"
+  when: "ansible_version.full is version_compare('2.12', '>=') and ansible_os_family in ['RedHat', 'Debian']"
+
+# Установка плагина docker-compose (для Ansible < 2.12 или не-RHEL/Debian систем)
+- name: "Docker | Install docker-compose plugin."
+  package:
+    name: "{{ docker_compose_package }}"
+    state: "{{ docker_compose_package_state }}"
+  notify: Restart docker
+  ignore_errors: "{{ ansible_check_mode }}"
+  when: "docker_install_compose_plugin and (ansible_version.full is version_compare('2.12', '<') or ansible_os_family not in ['RedHat', 'Debian'])"
+
+# Установка плагина docker-compose с возможностью даунгрейда
+- name: "Docker | Install docker-compose-plugin (with downgrade option)."
+  package:
+    name: "{{ docker_compose_package }}"
+    state: "{{ docker_compose_package_state }}"
+    allow_downgrade: true
+  notify: Restart docker
+  ignore_errors: "{{ ansible_check_mode }}"
+  when: "docker_install_compose_plugin and ansible_version.full is version_compare('2.12', '>=') and ansible_os_family in ['RedHat', 'Debian']"
+
+# Создаем директорию для конфигурации Docker, если нужно настроить daemon
+- name: "Docker | Ensure /etc/docker/ directory exists."
+  file:
+    path: /etc/docker
+    state: directory
+    mode: 0755  # Права доступа
+  when: docker_daemon_options.keys() | length > 0  # Только если есть настройки
+
+# Настройка параметров Docker daemon через JSON-файл
+- name: "Docker | Configure Docker daemon options."
+  copy:
+    content: "{{ docker_daemon_options | to_nice_json }}"  # Конвертируем переменные в JSON
+    dest: /etc/docker/daemon.json  # Основной конфиг Docker
+    mode: 0644
+  when: docker_daemon_options.keys() | length > 0  # Только если есть настройки
+  notify: Restart docker  # Перезапуск Docker после изменения конфига
+
+# Включаем и запускаем Docker сервис
+- name: "Docker | Ensure Docker is started and enabled at boot."
+  service:
+    name: docker
+    state: "{{ docker_service_state }}"  # started/stopped
+    enabled: "{{ docker_service_enabled }}"  # Запускать при загрузке
+  ignore_errors: "{{ ansible_check_mode }}"
+  when: docker_service_manage | bool  # Только если управление сервисом включено
+
+# Принудительно выполняем handlers (например, перезапуск Docker) перед следующими задачами
+- name: "Docker | Ensure handlers are notified now to avoid firewall conflicts."
+  meta: flush_handlers
+
+# Установка docker-compose через отдельный файл задач
+- name: "Docker | Install docker-compose"
+  include_tasks: docker-compose.yml  # Подключаем отдельный файл с задачами
+  when: docker_install_compose | bool  # Только если нужно установить
+
+# Получаем информацию о группе docker для управления пользователями
+- name: "Docker | Get docker group info using getent."
+  getent:
+    database: group
+    key: docker
+    split: ':'
+  when: docker_users | length > 0  # Только если есть пользователи для добавления
+
+# Проверяем, есть ли пользователи, которых нужно добавить в группу docker
+- name: "Docker | Check if there are any users to add to the docker group."
+  set_fact:
+    at_least_one_user_to_modify: true  # Флаг, что есть пользователи для изменения
+  when:
+    - docker_users | length > 0
+    - item not in ansible_facts.getent_group["docker"][2]  # Если пользователь еще не в группе
+  with_items: "{{ docker_users }}"
+
+# Добавляем пользователей в группу docker через отдельный файл задач
+- name: "Docker | Add user to docker group"
+  include_tasks: docker-users.yml  # Подключаем задачи управления пользователями
+  when: at_least_one_user_to_modify is defined  # Только если есть кого добавлять
